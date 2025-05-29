@@ -1,0 +1,322 @@
+import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { collection, doc, getDocs, query, setDoc, Timestamp, where } from 'firebase/firestore';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { auth, db } from './lib/firebaseConfig';
+
+export default function SignupScreen() {
+  const router = useRouter();
+  
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [empCode, setEmpCode] = useState('');
+  const [department, setDepartment] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+    const handleUppercase = (setter: any) => (text: string) => {
+    setter(text.toUpperCase());
+    setErrors(prev => ({ ...prev, [setter.name]: '' }));
+  };
+
+  const handleEmpCodeChange = (text: string) => {
+    const onlyDigits = text.replace(/[^0-9]/g, '');
+    setEmpCode(onlyDigits);
+    setErrors(prev => ({ ...prev, empCode: '' }));
+  };
+
+  const isValidEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const handleSignup = async () => {
+    const newErrors: { [key: string]: string } = {};
+  
+    if (!firstName) newErrors.firstName = 'First name is required';
+    if (!lastName) newErrors.lastName = 'Last name is required';
+    if (!empCode) newErrors.empCode = 'Employee code is required';
+    if (!department) newErrors.department = 'Department is required';
+    if (!username) newErrors.username = 'Email is required';
+    else if (!isValidEmail(username)) newErrors.username = 'Invalid email address';
+    if (!password) newErrors.password = 'Password is required';
+  
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+  
+    setErrors({}); // Clear previous errors
+  
+    try {
+      // 👇 Check if empCode already exists
+      const q = query(collection(db, 'users'), where('empCode', '==', empCode));
+      const querySnapshot = await getDocs(q);
+  
+      if (!querySnapshot.empty) {
+        setErrors({ empCode: 'Employee code already exists.' });
+        return; // Stop signup
+      }
+  
+      // Now proceed with signup
+      const userCredential = await createUserWithEmailAndPassword(auth, username, password);
+      const uid = userCredential.user.uid;
+
+      try {
+        await setDoc(doc(db, 'users', uid), {
+          uid,
+          firstName,
+          lastName,
+          empCode,
+          department,
+          email: username,
+          createdAt: new Date(),
+          coins: 75,
+          lastReset: Timestamp.now(),
+          role: 'user',
+        });
+      } catch (error) {
+        console.error('Firestore write error:', error);
+        alert('Signup failed. Firestore error. Check console.');
+        return; // Stop further execution if Firestore write fails
+      }
+
+      router.replace('/login');      
+    } 
+    catch (error: any) {
+      const firebaseErrors: { [key: string]: string } = {};
+  
+      if (error.code === 'auth/email-already-in-use') {
+        firebaseErrors.username = 'This email is already in use.';
+      } else if (error.code === 'auth/invalid-email') {
+        firebaseErrors.username = 'Please enter a valid email address.';
+      } else if (error.code === 'auth/weak-password') {
+        firebaseErrors.password = 'Password should be at least 6 characters.';
+      } else {
+        alert('Signup failed. Please try again.');
+      }
+  
+      setErrors(firebaseErrors);
+    }
+  };
+  
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.replace('/login')} style={styles.backButton}>
+            <Feather name="arrow-left" size={24} color="#2b4eff" />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.title}>Sign Up</Text>
+
+        <TextInput
+          placeholder="First Name"
+          placeholderTextColor="#888"
+          value={firstName}
+          onChangeText={(text) => {
+            setFirstName(text.toUpperCase());
+            setErrors(prev => ({ ...prev, firstName: '' }));
+          }}
+          style={styles.input}
+        />
+        {errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
+
+        <TextInput
+          placeholder="Last Name"
+          placeholderTextColor="#888"
+          value={lastName}
+          onChangeText={(text) => {
+            setLastName(text.toUpperCase());
+            setErrors(prev => ({ ...prev, lastName: '' }));
+          }}
+          style={styles.input}
+        />
+        {errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
+
+        <TextInput
+          placeholder="Employee Code"
+          placeholderTextColor="#888"
+          value={empCode}
+          onChangeText={handleEmpCodeChange}
+          style={styles.input}
+          keyboardType="numeric"
+        />
+        {errors.empCode && <Text style={styles.errorText}>{errors.empCode}</Text>}
+
+        <TextInput
+          placeholder="Department"
+          placeholderTextColor="#888"
+          value={department}
+          onChangeText={(text) => {
+            setDepartment(text.toUpperCase());
+            setErrors(prev => ({ ...prev, department: '' }));
+          }}
+          style={styles.input}
+        />
+        {errors.department && <Text style={styles.errorText}>{errors.department}</Text>}
+
+        <TextInput
+          placeholder="Email"
+          placeholderTextColor="#888"
+          value={username}
+          onChangeText={(text) => {
+            setUsername(text);
+            setErrors(prev => ({ ...prev, username: '' }));
+          }}
+          style={styles.input}
+          autoCapitalize="none"
+        />
+        {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
+
+        <View style={styles.passwordContainer}>
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor="#888"
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              setErrors(prev => ({ ...prev, password: '' }));
+            }}
+            style={styles.passwordInput}
+            secureTextEntry={!showPassword}
+          />
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => setShowPassword(!showPassword)}
+          >
+            <Text style={{ fontSize: 18 }}>{showPassword ? '🙈' : '👁️'}</Text>
+          </TouchableOpacity>
+        </View>
+        {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+
+        <TouchableOpacity
+  style={[styles.button, isLoading && { opacity: 0.7 }]}
+  onPress={handleSignup}
+  disabled={isLoading} // 👈 disable when loading
+>
+  {isLoading ? (
+    <ActivityIndicator color="#fff" />
+  ) : (
+    <Text style={styles.buttonText}>Sign Up</Text>
+  )}
+</TouchableOpacity>
+
+        <Text style={styles.footerText}>
+          Already have an account?{' '}
+          <Text style={styles.link} onPress={() => router.replace('/login')}>
+            Log In
+          </Text>
+        </Text>
+      </ScrollView>
+
+      {/* 👇Hide Keyboard Button */}
+      </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    zIndex: 1,
+  },
+  backButton: {
+    backgroundColor: '#fff',
+    borderRadius: 25,
+    padding: 10,
+    elevation: 5,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#dbe4ff',
+    marginBottom: 8,
+    paddingHorizontal: 0,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal:18,
+    fontSize: 16,
+  },
+  toggleButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 10,
+  },
+  container: { flex: 1, backgroundColor: '#f2f6ff' },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2b4eff',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  input: {
+    backgroundColor: '#fff',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    marginBottom: 8,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#dbe4ff',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 13,
+    marginBottom: 10,
+    marginTop: -6,
+    paddingLeft: 4,
+  },
+  button: {
+    backgroundColor: '#2b4eff',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#555',
+    textAlign: 'center',
+  },
+  link: {
+    color: '#2b4eff',
+    fontWeight: 'bold',
+  },
+});

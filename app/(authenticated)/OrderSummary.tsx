@@ -1,0 +1,327 @@
+import { Feather } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { getAuth } from 'firebase/auth';
+import { doc, getDoc, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { useState } from 'react';
+import { Alert, Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { db } from '../lib/firebaseConfig';
+
+export default function OrderSummaryScreen() {
+  const router = useRouter();
+  const { total, coins, userId } = useLocalSearchParams();
+
+  const totalAmount = parseFloat(total as string);
+  const coinBalance = parseInt(coins as string);
+  const remainingAmount = Math.max(0, totalAmount - coinBalance);
+  const coinsUsed = Math.min(coinBalance, totalAmount);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [userInfo, setUserInfo] = useState({ firstName: '', lastName: '', department: '', role: '' });
+
+  const showAlert = (title: string, message: string, buttons?: any[]) => {
+    if (Platform.OS === 'web') {
+      // On web, just show a basic alert without custom buttons
+      window.alert(`${title}\n\n${message}`);
+      if (buttons) {
+        const confirmBtn = buttons.find(b => b.text?.toLowerCase().includes('confirm') || b.text?.toLowerCase().includes('i’ve paid'));
+        if (confirmBtn?.onPress) confirmBtn.onPress(); // Call confirm action if exists
+      }
+    } else {
+      Alert.alert(title, message, buttons);
+    }
+  };
+  const handleConfirm = async () => {
+    if (!userId) return;
+  
+    const userRef = doc(db, 'users', userId as string);
+    const userSnap = await getDoc(userRef);
+  
+    if (!userSnap.exists()) {
+      if (Platform.OS === 'web') {
+        window.alert('User data not found.');
+      } else {
+        Alert.alert('Error', 'User data not found.');
+      }
+      return;
+    }
+  
+    const userData = userSnap.data();
+const { firstName, lastName, department, role } = userData;
+setUserInfo({ firstName, lastName, department, role });
+
+  
+    if (coinBalance === 0) {
+      if (Platform.OS === 'web') {
+        window.alert('Insufficient coins.');
+      } else {
+        Alert.alert('Error', 'Insufficient coins.');
+      }
+      return;
+    }
+  
+    const todayDate = new Date().toDateString();
+    const orderId = `${userId}_${todayDate.replace(/\s+/g, '_')}`;
+    const orderRef = doc(db, 'orders', orderId);
+    const orderSnap = await getDoc(orderRef);
+  
+    const saveOrUpdateOrder = async () => {
+      if (orderSnap.exists()) {
+        const existingCoinsUsed = orderSnap.data().coinsUsed || 0;
+        await updateDoc(orderRef, {
+          coinsUsed: existingCoinsUsed + coinsUsed,
+          timestamp: Timestamp.now(),
+        });
+      } else {
+        await setDoc(orderRef, {
+          userId,
+          firstName,
+          lastName,
+          department,
+          coinsUsed,
+          remainingAmount,
+          totalAmount,
+          timestamp: Timestamp.now(),
+        });
+      }
+  
+      await updateDoc(userRef, {
+        coins: coinBalance - coinsUsed,
+      });
+    };
+  
+    if (remainingAmount > 0) {
+      if (Platform.OS === 'web') {
+        const confirmed = window.confirm(`Pay with UPI\n\nScan the cafeteria UPI QR code and pay ₹${remainingAmount.toFixed(2)}.\n\nOnce done, click OK to confirm.`);
+        if (confirmed) {
+          await saveOrUpdateOrder();
+          setShowSuccess(true);
+        }
+      } else {
+        Alert.alert(
+          'Pay with UPI',
+          `Scan the cafeteria UPI QR code and pay ₹${remainingAmount.toFixed(2)}.\n\nOnce done, tap "I’ve Paid".`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'I’ve Paid',
+              onPress: async () => {
+                await saveOrUpdateOrder();
+                setShowSuccess(true);
+              },
+            },
+          ]
+        );
+      }
+    } else {
+      if (Platform.OS === 'web') {
+        const confirmed = window.confirm('You are using coins to pay for this order. Do you want to proceed?');
+        if (confirmed) {
+          await saveOrUpdateOrder();
+          setShowSuccess(true);
+        }
+      } else {
+        Alert.alert(
+          'Confirm Order',
+          'You are using coins to pay for this order. Do you want to proceed?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Confirm',
+              style: 'destructive',
+              onPress: async () => {
+                await saveOrUpdateOrder();
+                setShowSuccess(true);
+              },
+            },
+          ]
+        );
+      }
+    }
+  };
+  
+  
+  
+
+  const handleLogout = () => {
+      const auth = getAuth();
+    
+      if (Platform.OS === 'web') {
+        const confirmed = window.confirm('Are you sure you want to logout?');
+        if (confirmed) {
+          auth.signOut();
+          router.replace('/login');
+        }
+      } else {
+        Alert.alert('Logout', 'Are you sure you want to logout?', [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: () => {
+              auth.signOut();
+              router.replace('/login');
+            },
+          },
+        ]);
+      }
+    };
+
+  const handleBack = () => {
+    router.back(); // Go back to the previous screen (HomeScreen)
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* Top Bar with Back and Logout Icons */}
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <Feather name="arrow-left" size={24} color="#2b4eff" />
+          </TouchableOpacity>
+
+          <Text style={styles.heading}>🧾 Order Summary</Text>
+
+          <TouchableOpacity onPress={handleLogout} style={styles.backButton}>
+            <Feather name="log-out" size={24} color="#2b4eff" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.summaryBox}>
+          <Text style={styles.summaryText}>Total: ₹{totalAmount.toFixed(2)}</Text>
+          <Text style={styles.summaryText}>Coins Used: 🪙 {coinsUsed}</Text>
+          <Text style={styles.summaryText}>
+            UPI Payment: ₹{remainingAmount.toFixed(2)}
+          </Text>
+        </View>
+      </ScrollView>
+
+      {/* Confirm & Pay Button at the Bottom */}
+      <View style={styles.bottomContainer}>
+        <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
+          <Text style={styles.confirmBtnText}>Confirm & Pay</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Success Modal */}
+      <Modal visible={showSuccess} animationType="slide" transparent>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: 'white',
+              borderRadius: 20,
+              padding: 24,
+              width: '80%',
+              alignItems: 'center',
+              elevation: 10,
+            }}
+          >
+            <Image 
+  source={require('../../assets/images/Hella-Logo.png')}
+  style={{ width: 100, height: 100, marginBottom: 16, resizeMode: 'contain' }}
+/>
+
+            <Text style={{ fontSize: 20, fontWeight: '700', color: '#2b4eff' }}>
+              Order Confirmed
+            </Text>
+            <Text style={{ marginVertical: 8 }}>
+              Thank you, {userInfo.firstName} {userInfo.lastName}!
+            </Text>
+            <Text>Dept: {userInfo.department}</Text>
+            <TouchableOpacity
+              style={{
+                marginTop: 16,
+                backgroundColor: '#2b4eff',
+                padding: 12,
+                borderRadius: 10,
+              }}
+              onPress={() => {
+  setShowSuccess(false);
+  if (userInfo.role === 'admin') {    
+    router.replace('/(authenticated)/adminPage/adminNavigator'); // this will show tabs
+  } else {
+    router.replace('/(authenticated)/homeScreen'); // normal user's home
+  }
+}}
+
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>Go to Home</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+  
+}
+
+
+const styles = StyleSheet.create({
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#f5f8ff', // Match the background color for consistency
+    padding: 16,
+    borderTopWidth: 0,
+
+    borderColor: '#e0e7ff', // Subtle border at the top
+  },
+  confirmBtn: {
+    backgroundColor: '#2b4eff',
+    padding: 14,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  confirmBtnText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  backButton: {
+    backgroundColor: '#fff',
+    borderRadius: 25,
+    padding: 10,
+    elevation: 5,
+  },
+  
+  container: {
+    padding: 24,
+    backgroundColor: '#f5f8ff',
+    flexGrow: 1,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  heading: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2b4eff',
+    textAlign: 'center',
+    flex: 1,
+  },
+  summaryBox: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 10,
+    borderColor: '#e0e7ff',
+    borderWidth: 1,
+    marginTop: 24,
+  },
+  summaryText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginVertical: 4,
+  },
+  
+});

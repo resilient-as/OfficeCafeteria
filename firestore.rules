@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ✅ Helper: Check if user is logged in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // ✅ Helper: Check if user is admin
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ✅ Helper: Check if user is regular (non-admin)
+    function isRegularUser() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'user';
+    }
+
+    // 🔐 USERS COLLECTION
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isRegularUser() && request.auth.uid == userId;
+
+      // Admin can read and edit any user profile
+      allow read, write: if isAdmin();
+    }
+
+    // 🔐 ORDERS COLLECTION
+    match /orders/{orderId} {
+      // Admins and users can create orders for themselves
+      allow create: if (isAdmin() || isRegularUser()) &&
+        request.resource.data.userID == request.auth.uid;
+
+      // Users can read their own orders
+      allow read: if isRegularUser() &&
+        resource.data.userID == request.auth.uid;
+
+      // Admins can read all orders
+      allow read: if isAdmin();
+
+      // Admins can update or delete any order
+      allow update, delete: if isAdmin();
+    }
+
+    // 🔐 MENU ITEMS COLLECTION
+    match /menuItems/{itemId} {
+      // All signed-in users can view menu items
+      allow read: if isSignedIn();
+
+      // Only admin can create, update, or delete menu items
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

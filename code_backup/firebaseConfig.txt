@@ -1,0 +1,25 @@
+// firebase.js
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, addDoc, connectFirestoreEmulator} from 'firebase/firestore';
+import { getAuth, connectAuthEmulator} from 'firebase/auth';
+// Your web app's Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyAxndI-D5y3Dh3PCjDfc6R-2oEdsPb7Bms",
+  authDomain: "getyourfoodhella.firebaseapp.com",
+  databaseURL: "https://getyourfoodhella-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "getyourfoodhella",
+  storageBucket: "getyourfoodhella.firebasestorage.app",
+  messagingSenderId: "1033028118527",
+  appId: "1:1033028118527:web:cbe312f780d1e54bc4e9ca",
+  measurementId: "G-GDJJVYCS4P"
+  };
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+if (__DEV__) {
+  connectFirestoreEmulator(db, 'localhost', 8085);
+  connectAuthEmulator(auth, 'http://localhost:9099');
+}
+// ✅ Single export line — no duplicates
+export { db, auth, collection, addDoc }

@@ -1,0 +1,51 @@
+// AdminNavigator.tsx
+import React from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import HeaderLogoutButton from './HeaderLogoutButton';
+import AdminUserManagement from './AdminUserManagement';
+import AdminMenuManagement from './AdminMenuManagement';
+import AdminOrderManagement from './AdminOrderManagement';
+import HomeScreen from '../homeScreen'; // 👈 Import homeScreen for lunch ordering
+import { useState } from 'react';
+import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+
+const Tab = createBottomTabNavigator();
+
+export default function AdminTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: true,
+      }}
+    >
+      <Tab.Screen
+        name="👥 User Management"
+        component={AdminUserManagement}
+        options={{
+          headerRight: () => <HeaderLogoutButton />,
+        }}
+      />
+      <Tab.Screen
+        name="🍽️ Menu Management"
+        component={AdminMenuManagement}
+        options={{
+          headerRight: () => <HeaderLogoutButton />,
+        }}
+      />
+      <Tab.Screen
+        name="🛒 Order Management"
+        component={AdminOrderManagement}
+        options={{
+          headerRight: () => <HeaderLogoutButton />,
+        }}
+      />
+      <Tab.Screen
+  name="🍱 Order Lunch"
+  component={HomeScreen}
+  options={{
+    headerShown: false,
+  }}
+/>
+    </Tab.Navigator>
+  );
+}
