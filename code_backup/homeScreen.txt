@@ -95,13 +95,6 @@ export default function HomeScreen() {
       fetchUserData();
     }, [])
   );
-
-  useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
   
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'menuItems'), (snapshot) => {
@@ -184,13 +177,35 @@ export default function HomeScreen() {
 
   const handleShareCoins = async () => {
     const amount = parseInt(shareAmount);
+
+    // Prevent self coin sharing
+    if (
+      receiverCode === userData?.empCode || // compare with user's empCode
+      receiverCode === userId                // or with userId, if you allow sharing by userId
+    ) {
+      if (Platform.OS === 'web') {
+        window.alert("You can't share coins with yourself.");
+      } else {
+        Alert.alert('Invalid Operation', "You can't share coins with yourself.");
+      }
+      return;
+    }
+
     if (!receiverCode || isNaN(amount) || amount <= 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid receiver Emp Code and amount.');
+      if (Platform.OS === 'web') {
+        window.alert('Please enter a valid receiver Emp Code and amount.');
+      } else {
+        Alert.alert('Invalid Input', 'Please enter a valid receiver Emp Code and amount.');
+      }
       return;
     }
 
     if (amount > coins) {
-      Alert.alert('Insufficient Coins', 'You do not have enough coins to share this amount.');
+      if (Platform.OS === 'web') {
+        window.alert('You do not have enough coins to share this amount.');
+      } else {
+        Alert.alert('Insufficient Coins', 'You do not have enough coins to share this amount.');
+      }
       return;
     }
 
@@ -199,7 +214,11 @@ export default function HomeScreen() {
       const receiverSnapshot = await getDocs(receiverQuery);
 
       if (receiverSnapshot.empty) {
-        Alert.alert('User Not Found', 'No user found with this Emp Code.');
+        if (Platform.OS === 'web') {
+          window.alert('No user found with this Emp Code.');
+        } else {
+          Alert.alert('User Not Found', 'No user found with this Emp Code.');
+        }
         return;
       }
 
@@ -221,7 +240,11 @@ export default function HomeScreen() {
       Alert.alert('Success', 'Coins shared successfully!');
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'An error occurred while sharing coins.');
+      if (Platform.OS === 'web') {
+        window.alert('An error occurred while sharing coins.');
+      } else {
+        Alert.alert('Error', 'An error occurred while sharing coins.');
+      }
     }
   };
 
@@ -409,7 +432,18 @@ export default function HomeScreen() {
           onChangeText={setReceiverCode}
           style={styles.input}
         />
-        <TouchableOpacity style={styles.iconButton} onPress={() => setCameraVisible(true)}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={async () => {
+            const { status } = await Camera.requestCameraPermissionsAsync();
+            setHasPermission(status === 'granted');
+            if (status === 'granted') {
+              setCameraVisible(true);
+            } else {
+              Alert.alert('Permission Denied', 'Camera permission is required to scan QR codes.');
+            }
+          }}
+        >
           <MaterialIcons name="camera-alt" size={24} color="#2b4eff" />
         </TouchableOpacity>
       </View>
@@ -449,7 +483,10 @@ export default function HomeScreen() {
   animationType="slide"
   transparent={false}
   visible={cameraVisible}
-  onRequestClose={() => setCameraVisible(false)}
+  onRequestClose={() => {
+    setCameraVisible(false);
+    setHasPermission(null);
+  }}
 >
   <SafeAreaView style={{ flex: 1, backgroundColor: 'black' }}>
     {hasPermission === null ? (
@@ -497,7 +534,10 @@ export default function HomeScreen() {
         padding: 10,
         borderRadius: 20,
       }}
-      onPress={() => setCameraVisible(false)}
+      onPress={() => {
+        setCameraVisible(false);
+        setHasPermission(null);
+      }}
     >
       <Text style={{ color: 'black', fontWeight: 'bold' }}>Close</Text>
     </Pressable>

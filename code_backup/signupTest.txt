@@ -13,6 +13,7 @@ import {
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -78,6 +79,9 @@ export default function SignupScreen() {
       const userCredential = await createUserWithEmailAndPassword(auth, username, password);
       const uid = userCredential.user.uid;
 
+      // ✅ Add delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       await setDoc(doc(db, 'users', uid), {
         uid,
         firstName: firstName.toUpperCase(),
@@ -93,6 +97,10 @@ export default function SignupScreen() {
 
       router.replace('/login');
     } catch (error: any) {
+      console.log('Signup error:', error);
+      console.log('Error Code:', error.code);
+      console.log('Error Message:', error.message);
+      Alert.alert('Signup Failed', error.message || 'Something went wrong.');
       const firebaseErrors: { [key: string]: string } = {};
 
       if (error.code === 'auth/email-already-in-use') {
@@ -101,9 +109,6 @@ export default function SignupScreen() {
         firebaseErrors.username = 'Please enter a valid email address.';
       } else if (error.code === 'auth/weak-password') {
         firebaseErrors.password = 'Password should be at least 6 characters.';
-      } else {
-        alert('Signup failed. Please try again.');
-        console.error('Signup error:', error);
       }
 
       setErrors(firebaseErrors);

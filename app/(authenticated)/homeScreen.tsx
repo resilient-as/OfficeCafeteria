@@ -4,6 +4,7 @@ import { Camera, CameraView } from "expo-camera";
 import { useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import {
+  addDoc,
   collection,
   doc,
   getDoc,
@@ -59,40 +60,67 @@ export default function HomeScreen() {
   };
 
   const fetchUserData = async () => {
-    const auth = getAuth();
-    const user = auth.currentUser;
+  const auth = getAuth();
+  const user = auth.currentUser;
 
-    if (user) {
+  if (user) {
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
       setUserId(user.uid);
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
+      const userData = userSnap.data();
+      const lastReset: Timestamp = userData.lastReset;
+      const currentCoins = userData.coins ?? 0;
 
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        const lastReset = userData.lastReset;
-        const currentCoins = userData.coins ?? 0;
+      const today = new Date().toDateString();
+      const lastResetDate = lastReset?.toDate().toDateString();
 
-        const shouldReset =
-          !lastReset || !(lastReset instanceof Timestamp) || isNewDay(lastReset);
+      // Check if user is logging in on a new day
+      if (today !== lastResetDate) {
+        // Fetch coins received today
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
 
-        if (shouldReset) {
-          await updateDoc(userRef, {
-            coins: 75,
-            lastReset: Timestamp.now(),
-          });
-          setCoins(75);
-        } else {
-          setCoins(currentCoins);
-        }
-        setUserData(userData);
+        const coinTransfersRef = collection(db, 'coinTransfers');
+        const q = query(
+          coinTransfersRef,
+          where('receiverId', '==', user.uid),
+          where('timestamp', '>=', Timestamp.fromDate(startOfToday))
+        );
+        const querySnapshot = await getDocs(q);
+
+        let receivedToday = 0;
+        querySnapshot.forEach(doc => {
+          const data = doc.data();
+          receivedToday += data.amount ?? 0;
+        });
+
+        const newCoins = 75 + receivedToday;
+
+        // Reset coins to 75 + receivedToday
+        await updateDoc(userRef, {
+          coins: newCoins,
+          lastReset: Timestamp.now(),
+        });
+
+        setCoins(newCoins);
+      } else {
+        // No reset needed
+        setCoins(currentCoins);
       }
+
+      setUserData(userData);
     }
-  };
+  }
+};
 
   // Refresh user data when screen is focused
   useFocusEffect(
     React.useCallback(() => {
+      let isActive = true;
       fetchUserData();
+      return () => { isActive = false; };
     }, [])
   );
   
@@ -108,8 +136,6 @@ export default function HomeScreen() {
       items.forEach((item) => (initialQuantities[item.id] = 0));
       setQuantities(initialQuantities);
     });
-
-    fetchUserData();
 
     return () => unsubscribe();
   }, []);
@@ -175,15 +201,49 @@ export default function HomeScreen() {
     }
   };
 
+  // Record coin transfer in Firestore
+  const recordCoinTransfer = async (senderId: string, receiverId: string, amount: number) => {
+    try {
+      await addDoc(collection(db, 'coinTransfers'), {
+        senderId,
+        receiverId,
+        amount,
+        timestamp: Timestamp.now()
+      });
+      console.log('Coin transfer recorded successfully');
+    } catch (error) {
+      console.error('Error recording coin transfer:', error);
+    }
+  };
+
   const handleShareCoins = async () => {
     const amount = parseInt(shareAmount);
+
+    // Prevent self coin sharing
+    if (receiverCode === userData?.empCode) {
+      if (Platform.OS === 'web') {
+        window.alert("You can't share coins with yourself.");
+      } else {
+        Alert.alert('Invalid Operation', "You can't share coins with yourself.");
+      }
+      return;
+    }
+
     if (!receiverCode || isNaN(amount) || amount <= 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid receiver Emp Code and amount.');
+      if (Platform.OS === 'web') {
+        window.alert('Please enter a valid receiver Emp Code and amount.');
+      } else {
+        Alert.alert('Invalid Input', 'Please enter a valid receiver Emp Code and amount.');
+      }
       return;
     }
 
     if (amount > coins) {
-      Alert.alert('Insufficient Coins', 'You do not have enough coins to share this amount.');
+      if (Platform.OS === 'web') {
+        window.alert('You do not have enough coins to share this amount.');
+      } else {
+        Alert.alert('Insufficient Coins', 'You do not have enough coins to share this amount.');
+      }
       return;
     }
 
@@ -192,7 +252,11 @@ export default function HomeScreen() {
       const receiverSnapshot = await getDocs(receiverQuery);
 
       if (receiverSnapshot.empty) {
-        Alert.alert('User Not Found', 'No user found with this Emp Code.');
+        if (Platform.OS === 'web') {
+          window.alert('No user found with this Emp Code.');
+        } else {
+          Alert.alert('User Not Found', 'No user found with this Emp Code.');
+        }
         return;
       }
 
@@ -206,6 +270,9 @@ export default function HomeScreen() {
       await updateDoc(senderRef, { coins: coins - amount });
       await updateDoc(receiverRef, { coins: (receiverData.coins || 0) + amount });
 
+      // After updating sender and receiver coin balances
+      await recordCoinTransfer(userId!, receiverDoc.id, amount);
+
       setCoins((prev) => prev - amount);
       setReceiverCode('');
       setShareAmount('');
@@ -214,7 +281,11 @@ export default function HomeScreen() {
       Alert.alert('Success', 'Coins shared successfully!');
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'An error occurred while sharing coins.');
+      if (Platform.OS === 'web') {
+        window.alert('An error occurred while sharing coins.');
+      } else {
+        Alert.alert('Error', 'An error occurred while sharing coins.');
+      }
     }
   };
 

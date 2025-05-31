@@ -123,12 +123,12 @@ export default function AdminUserManagement() {
         <View style={styles.modalContainer}>
           <Text style={styles.modalTitle}>✏️ Edit User</Text>
 
-          {(['firstName', 'lastName', 'empCode', 'department'] as Array<keyof typeof editingUser>).map((field) => (
+          {(['firstName', 'lastName', 'empCode', 'department', 'coins'] as Array<keyof typeof editingUser>).map((field) => (
             <TextInput
               key={String(field)}
               style={styles.input}
               placeholder={(field as string).charAt(0).toUpperCase() + (field as string).slice(1)}
-              keyboardType="default"
+              keyboardType={field === 'coins' ? 'numeric' : 'default'}
               value={editingUser ? String(editingUser[field]) : ''}
               onChangeText={(value) => handleInputChange(field as string, value)}
             />
