@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from './lib/firebaseConfig'; // adjust path
-import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import React, { useState } from 'react';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { auth } from './lib/firebaseConfig'; // adjust path
 export default function ResetPasswordScreen() {
   const [email, setEmail] = useState('');
   const router = useRouter();
@@ -35,6 +36,7 @@ export default function ResetPasswordScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
       <View style={styles.header}>
           <TouchableOpacity onPress={() => router.replace('/login')} style={styles.backButton}>
             <Feather name="arrow-left" size={24} color="#2b4eff" />
@@ -83,6 +85,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     padding: 10,
     elevation: 5,
+    marginTop: 10,
   },
   subtitle: {
     fontSize: 16,

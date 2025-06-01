@@ -2,6 +2,7 @@ import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Camera, CameraView } from "expo-camera";
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { getAuth } from 'firebase/auth';
 import {
   addDoc,
@@ -22,7 +23,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -30,8 +30,8 @@ import {
   View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { db } from '../lib/firebaseConfig';
-
 export default function HomeScreen() {
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
@@ -311,7 +311,8 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar style="dark" backgroundColor="#f5f8ff" />    
       <View style={styles.headerContainer}>
   {/* Left side - Welcome Text */}
   <View style={styles.leftContainer}>

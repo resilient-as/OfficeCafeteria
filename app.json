@@ -17,7 +17,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.sharas5.officeCafeteria"
+      "package": "com.sharas5.OfficeCafeteria"
     },
     "web": {
       "bundler": "metro",
@@ -29,7 +29,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
@@ -44,7 +44,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "14c7e6ce-20e6-4b6d-9d26-bdc1d775afe6"
+        "projectId": "535d703b-6af7-4ba2-b9e1-b2550e72c228"
       }
     },
     "owner": "sharas5"

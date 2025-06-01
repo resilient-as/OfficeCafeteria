@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import { useState } from 'react';
@@ -171,6 +172,7 @@ setUserInfo({ firstName, lastName, department, role });
 
   return (
     <View style={{ flex: 1 }}>
+      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.container}>
         {/* Top Bar with Back and Logout Icons */}
         <View style={styles.topBar}>

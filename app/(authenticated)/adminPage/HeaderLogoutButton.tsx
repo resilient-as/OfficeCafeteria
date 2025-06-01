@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Platform, TouchableOpacity, Alert } from 'react-native';
-import { getAuth } from 'firebase/auth';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { getAuth } from 'firebase/auth';
+import React, { useState } from 'react';
+import { Alert, Platform, TouchableOpacity } from 'react-native';
 
 export default function HeaderLogoutButton() {
   const router = useRouter();
@@ -48,8 +49,11 @@ export default function HeaderLogoutButton() {
   };
 
   return (
-    <TouchableOpacity onPress={confirmLogout} style={{ marginRight: 16 }} disabled={loading}>
-      <Ionicons name="log-out-outline" size={24} color={loading ? 'gray' : 'black'} />
-    </TouchableOpacity>
+    <>
+      <StatusBar style="dark" />
+      <TouchableOpacity onPress={confirmLogout} style={{ marginRight: 16 }} disabled={loading}>
+        <Ionicons name="log-out-outline" size={24} color={loading ? 'gray' : 'black'} />
+      </TouchableOpacity>
+    </>
   );
 }

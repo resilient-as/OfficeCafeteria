@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import {
   collection,
@@ -10,11 +11,13 @@ import {
   Timestamp,
   where,
 } from 'firebase/firestore';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -36,6 +39,21 @@ export default function SignupScreen() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () =>
+      setKeyboardVisible(true)
+    );
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () =>
+      setKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   const handleEmpCodeChange = (text: string) => {
     const onlyDigits = text.replace(/[^0-9]/g, '');
@@ -63,7 +81,7 @@ export default function SignupScreen() {
     }
 
     setErrors({});
-    setIsLoading(true); // Start loading
+    setIsLoading(true);
 
     try {
       const q = query(collection(db, 'users'), where('empCode', '==', empCode));
@@ -108,125 +126,137 @@ export default function SignupScreen() {
 
       setErrors(firebaseErrors);
     } finally {
-      setIsLoading(false); // Always stop loading
+      setIsLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.replace('/login')} style={styles.backButton}>
-            <Feather name="arrow-left" size={24} color="#2b4eff" />
-          </TouchableOpacity>
-        </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f2f6ff' }}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <StatusBar style="dark" backgroundColor="#ffffff" />
+        <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => {
+                if (isKeyboardVisible) {
+                  Keyboard.dismiss();
+                } else {
+                  router.replace('/login');
+                }
+              }}
+              style={styles.backButton}
+            >
+              <Feather name={isKeyboardVisible ? 'x' : 'arrow-left'} size={24} color="#2b4eff" />
+            </TouchableOpacity>
+          </View>
 
-        <Text style={styles.title}>Sign Up</Text>
+          <Text style={styles.title}>Sign Up</Text>
 
-        <TextInput
-          placeholder="First Name"
-          placeholderTextColor="#888"
-          value={firstName}
-          onChangeText={(text) => {
-            setFirstName(text.toUpperCase());
-            setErrors((prev) => ({ ...prev, firstName: '' }));
-          }}
-          style={styles.input}
-        />
-        {errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
-
-        <TextInput
-          placeholder="Last Name"
-          placeholderTextColor="#888"
-          value={lastName}
-          onChangeText={(text) => {
-            setLastName(text.toUpperCase());
-            setErrors((prev) => ({ ...prev, lastName: '' }));
-          }}
-          style={styles.input}
-        />
-        {errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
-
-        <TextInput
-          placeholder="Employee Code"
-          placeholderTextColor="#888"
-          value={empCode}
-          onChangeText={handleEmpCodeChange}
-          style={styles.input}
-          keyboardType="numeric"
-        />
-        {errors.empCode && <Text style={styles.errorText}>{errors.empCode}</Text>}
-
-        <TextInput
-          placeholder="Department"
-          placeholderTextColor="#888"
-          value={department}
-          onChangeText={(text) => {
-            setDepartment(text.toUpperCase());
-            setErrors((prev) => ({ ...prev, department: '' }));
-          }}
-          style={styles.input}
-        />
-        {errors.department && <Text style={styles.errorText}>{errors.department}</Text>}
-
-        <TextInput
-          placeholder="Email"
-          placeholderTextColor="#888"
-          value={username}
-          onChangeText={(text) => {
-            setUsername(text);
-            setErrors((prev) => ({ ...prev, username: '' }));
-          }}
-          style={styles.input}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
-
-        <View style={styles.passwordContainer}>
           <TextInput
-            placeholder="Password"
+            placeholder="First Name"
             placeholderTextColor="#888"
-            value={password}
+            value={firstName}
             onChangeText={(text) => {
-              setPassword(text);
-              setErrors((prev) => ({ ...prev, password: '' }));
+              setFirstName(text.toUpperCase());
+              setErrors((prev) => ({ ...prev, firstName: '' }));
             }}
-            style={styles.passwordInput}
-            secureTextEntry={!showPassword}
+            style={styles.input}
           />
+          {errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
+
+          <TextInput
+            placeholder="Last Name"
+            placeholderTextColor="#888"
+            value={lastName}
+            onChangeText={(text) => {
+              setLastName(text.toUpperCase());
+              setErrors((prev) => ({ ...prev, lastName: '' }));
+            }}
+            style={styles.input}
+          />
+          {errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
+
+          <TextInput
+            placeholder="Employee Code"
+            placeholderTextColor="#888"
+            value={empCode}
+            onChangeText={handleEmpCodeChange}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+          {errors.empCode && <Text style={styles.errorText}>{errors.empCode}</Text>}
+
+          <TextInput
+            placeholder="Department"
+            placeholderTextColor="#888"
+            value={department}
+            onChangeText={(text) => {
+              setDepartment(text.toUpperCase());
+              setErrors((prev) => ({ ...prev, department: '' }));
+            }}
+            style={styles.input}
+          />
+          {errors.department && <Text style={styles.errorText}>{errors.department}</Text>}
+
+          <TextInput
+            placeholder="Email"
+            placeholderTextColor="#888"
+            value={username}
+            onChangeText={(text) => {
+              setUsername(text);
+              setErrors((prev) => ({ ...prev, username: '' }));
+            }}
+            style={styles.input}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+          {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
+
+          <View style={styles.passwordContainer}>
+            <TextInput
+              placeholder="Password"
+              placeholderTextColor="#888"
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                setErrors((prev) => ({ ...prev, password: '' }));
+              }}
+              style={styles.passwordInput}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Text style={{ fontSize: 18 }}>{showPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
+          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+
           <TouchableOpacity
-            style={styles.toggleButton}
-            onPress={() => setShowPassword(!showPassword)}
+            style={[styles.button, isLoading && { opacity: 0.7 }]}
+            onPress={handleSignup}
+            disabled={isLoading}
           >
-            <Text style={{ fontSize: 18 }}>{showPassword ? '🙈' : '👁️'}</Text>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Sign Up</Text>
+            )}
           </TouchableOpacity>
-        </View>
-        {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
-        <TouchableOpacity
-          style={[styles.button, isLoading && { opacity: 0.7 }]}
-          onPress={handleSignup}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Sign Up</Text>
-          )}
-        </TouchableOpacity>
-
-        <Text style={styles.footerText}>
-          Already have an account?{' '}
-          <Text style={styles.link} onPress={() => router.replace('/login')}>
-            Log In
+          <Text style={styles.footerText}>
+            Already have an account?{' '}
+            <Text style={styles.link} onPress={() => router.replace('/login')}>
+              Log In
+            </Text>
           </Text>
-        </Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -242,6 +272,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     padding: 10,
     elevation: 5,
+    marginTop: 10,
   },
   passwordContainer: {
     flexDirection: 'row',

@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
@@ -19,7 +20,6 @@ import {
   View
 } from 'react-native';
 import { auth, db } from './lib/firebaseConfig';
-
 export default function LoginScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -122,6 +122,7 @@ export default function LoginScreen() {
       style={[styles.container, { flexDirection: isLargeScreen ? 'row' : 'column' }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <StatusBar style="auto"/>
       <View style={[styles.imageContainer, isLargeScreen ? styles.imageLarge : styles.imageMobile]}>
         <Image
           source={require('../assets/images/login_banner.jpg')}
