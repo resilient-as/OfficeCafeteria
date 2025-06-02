@@ -32,6 +32,7 @@ import {
 import QRCode from 'react-native-qrcode-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { db } from '../lib/firebaseConfig';
+
 export default function HomeScreen() {
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
@@ -384,31 +385,53 @@ export default function HomeScreen() {
 </View>
 
 {/* QR Code Modal */}
-<Modal
-  animationType="slide"
-  transparent={true}
-  visible={qrCodeModalVisible}
-  onRequestClose={() => setQrCodeModalVisible(false)}
->
-  <View style={styles.qrModalOverlay}>
-    <View style={styles.qrModalContent}>
-      {/* Close Button with X Icon */}
-      <TouchableOpacity
-        style={styles.closeIconContainer}
-        onPress={() => setQrCodeModalVisible(false)}
-      >
-        <MaterialIcons name="close" size={24} color="#444" />
-      </TouchableOpacity>
+<Modal visible={qrCodeModalVisible} transparent={true} animationType="slide">
+  <View
+    style={{
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+    }}
+  >
+    <View
+      style={{
+        backgroundColor: '#fff',
+        padding: 24,
+        borderRadius: 20,
+        alignItems: 'center',
+        width: 300,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+        elevation: 10,
+      }}
+    >
+      {userData?.empCode ? (
+        <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+          <QRCode value={userData.empCode} size={250} />
+        </View>
+      ) : (
+        <Text style={{ marginVertical: 40, fontSize: 16 }}>Loading...</Text>
+      )}
 
-      {/* QR Code */}
-      
-      <View style={styles.qrCodeContainer}>
-        <QRCode
-          value={userData?.empCode || userId || 'N/A'}
-          size={250} // Increased size of the QR code                    
-          color="black"              
-        />
-      </View>
+      <TouchableOpacity
+        onPress={() => setQrCodeModalVisible(false)}
+        style={{
+          backgroundColor: '#007BFF',
+          paddingVertical: 12,
+          paddingHorizontal: 24,
+          borderRadius: 30,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 4,
+          elevation: 5,
+        }}
+      >
+        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Close</Text>
+      </TouchableOpacity>
     </View>
   </View>
 </Modal>

@@ -2,8 +2,10 @@ import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Camera, CameraView } from "expo-camera";
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { getAuth } from 'firebase/auth';
 import {
+  addDoc,
   collection,
   doc,
   getDoc,
@@ -21,7 +23,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -29,8 +30,8 @@ import {
   View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { db } from '../lib/firebaseConfig';
-
 export default function HomeScreen() {
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
@@ -59,40 +60,67 @@ export default function HomeScreen() {
   };
 
   const fetchUserData = async () => {
-    const auth = getAuth();
-    const user = auth.currentUser;
+  const auth = getAuth();
+  const user = auth.currentUser;
 
-    if (user) {
+  if (user) {
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
       setUserId(user.uid);
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
+      const userData = userSnap.data();
+      const lastReset: Timestamp = userData.lastReset;
+      const currentCoins = userData.coins ?? 0;
 
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        const lastReset = userData.lastReset;
-        const currentCoins = userData.coins ?? 0;
+      const today = new Date().toDateString();
+      const lastResetDate = lastReset?.toDate().toDateString();
 
-        const shouldReset =
-          !lastReset || !(lastReset instanceof Timestamp) || isNewDay(lastReset);
+      // Check if user is logging in on a new day
+      if (today !== lastResetDate) {
+        // Fetch coins received today
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
 
-        if (shouldReset) {
-          await updateDoc(userRef, {
-            coins: 75,
-            lastReset: Timestamp.now(),
-          });
-          setCoins(75);
-        } else {
-          setCoins(currentCoins);
-        }
-        setUserData(userData);
+        const coinTransfersRef = collection(db, 'coinTransfers');
+        const q = query(
+          coinTransfersRef,
+          where('receiverId', '==', user.uid),
+          where('timestamp', '>=', Timestamp.fromDate(startOfToday))
+        );
+        const querySnapshot = await getDocs(q);
+
+        let receivedToday = 0;
+        querySnapshot.forEach(doc => {
+          const data = doc.data();
+          receivedToday += data.amount ?? 0;
+        });
+
+        const newCoins = 75 + receivedToday;
+
+        // Reset coins to 75 + receivedToday
+        await updateDoc(userRef, {
+          coins: newCoins,
+          lastReset: Timestamp.now(),
+        });
+
+        setCoins(newCoins);
+      } else {
+        // No reset needed
+        setCoins(currentCoins);
       }
+
+      setUserData(userData);
     }
-  };
+  }
+};
 
   // Refresh user data when screen is focused
   useFocusEffect(
     React.useCallback(() => {
+      let isActive = true;
       fetchUserData();
+      return () => { isActive = false; };
     }, [])
   );
   
@@ -108,8 +136,6 @@ export default function HomeScreen() {
       items.forEach((item) => (initialQuantities[item.id] = 0));
       setQuantities(initialQuantities);
     });
-
-    fetchUserData();
 
     return () => unsubscribe();
   }, []);
@@ -175,14 +201,26 @@ export default function HomeScreen() {
     }
   };
 
+  // Record coin transfer in Firestore
+  const recordCoinTransfer = async (senderId: string, receiverId: string, amount: number) => {
+    try {
+      await addDoc(collection(db, 'coinTransfers'), {
+        senderId,
+        receiverId,
+        amount,
+        timestamp: Timestamp.now()
+      });
+      console.log('Coin transfer recorded successfully');
+    } catch (error) {
+      console.error('Error recording coin transfer:', error);
+    }
+  };
+
   const handleShareCoins = async () => {
     const amount = parseInt(shareAmount);
 
     // Prevent self coin sharing
-    if (
-      receiverCode === userData?.empCode || // compare with user's empCode
-      receiverCode === userId                // or with userId, if you allow sharing by userId
-    ) {
+    if (receiverCode === userData?.empCode) {
       if (Platform.OS === 'web') {
         window.alert("You can't share coins with yourself.");
       } else {
@@ -232,6 +270,9 @@ export default function HomeScreen() {
       await updateDoc(senderRef, { coins: coins - amount });
       await updateDoc(receiverRef, { coins: (receiverData.coins || 0) + amount });
 
+      // After updating sender and receiver coin balances
+      await recordCoinTransfer(userId!, receiverDoc.id, amount);
+
       setCoins((prev) => prev - amount);
       setReceiverCode('');
       setShareAmount('');
@@ -270,7 +311,8 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar style="dark" backgroundColor="#f5f8ff" />    
       <View style={styles.headerContainer}>
   {/* Left side - Welcome Text */}
   <View style={styles.leftContainer}>
