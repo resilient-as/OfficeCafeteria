@@ -7,14 +7,14 @@ import { getReactNativePersistence, initializeAuth } from 'firebase/auth/react-n
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAxndI-D5y3Dh3PCjDfc6R-2oEdsPb7Bms",
-  authDomain: "getyourfoodhella.firebaseapp.com",
-  databaseURL: "https://getyourfoodhella-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "getyourfoodhella",
-  storageBucket: "getyourfoodhella.firebasestorage.app",
-  messagingSenderId: "1033028118527",
-  appId: "1:1033028118527:web:cbe312f780d1e54bc4e9ca",
-  measurementId: "G-GDJJVYCS4P"
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: "",
+  measurementId: ""
 };
 
 // Initialize Firebase
